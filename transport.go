@@ -2,6 +2,7 @@ package tor
 
 import (
 	"context"
+	"crypto"
 	"encoding/binary"
 	"fmt"
 	"github.com/libp2p/go-libp2p/core/network"
@@ -42,6 +43,8 @@ type transport struct {
 
 	// the listenStore is used for dialing connection to exchange listen addr.
 	laddrs listenStore
+
+	privateKey crypto.PrivateKey
 }
 
 // listenStore is a store for listen addrs.
@@ -94,6 +97,7 @@ func NewBuilder(cs ...config.Configurator) (func(tpt.Upgrader) tpt.Transport, er
 			dialer:       dialer,
 			upgrader:     u,
 			rcmgr:        conf.ResourceManager,
+			privateKey:   conf.PrivateKey,
 		}
 	}, nil
 }
@@ -142,6 +146,9 @@ func (t *transport) Listen(laddr ma.Multiaddr) (tpt.Listener, error) {
 			RemotePorts: []int{int(binary.BigEndian.Uint16(laddr.Bytes()[12:14]))},
 		}
 		base = "/onion/"
+	}
+	if t.privateKey != nil {
+		lconf.Key = t.privateKey
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), t.setupTimeout)
 	// Create an onion service to listen on any port but show as 80

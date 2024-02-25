@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto"
 	"github.com/libp2p/go-libp2p/core/network"
 	"io"
 	"strconv"
@@ -61,6 +62,19 @@ func WithDNSPort(port int) Configurator {
 	return func(c *confStore.Config) error {
 		portStr := strconv.Itoa(port)
 		c.TorStart.ExtraArgs = []string{"--DNSPort", portStr}
+		return nil
+	}
+}
+
+// WithPrivateKey provides an option to set the private key
+// used when creating onion addresses.
+//
+// The key is an ed25519 key which you can create with crypto/ed25519.
+//
+// If this option is omitted the key will be random.
+func WithPrivateKey(key crypto.PrivateKey) Configurator {
+	return func(c *confStore.Config) error {
+		c.PrivateKey = key
 		return nil
 	}
 }

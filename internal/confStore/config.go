@@ -1,6 +1,7 @@
 package confStore
 
 import (
+	"crypto"
 	"github.com/libp2p/go-libp2p/core/network"
 	"time"
 
@@ -12,6 +13,7 @@ type Config struct {
 	AllowTcpDial    bool
 	SetupTimeout    time.Duration
 	ResourceManager network.ResourceManager
+	PrivateKey      crypto.PrivateKey
 
 	TorStart *tor.StartConf
 }
