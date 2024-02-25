@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/joomcode/errorx"
@@ -50,6 +51,16 @@ func DoSlowStart(c *confStore.Config) error {
 func WithResourceManager(rcmgr network.ResourceManager) Configurator {
 	return func(c *confStore.Config) error {
 		c.ResourceManager = rcmgr
+		return nil
+	}
+}
+
+// WithDNSPort optionally sets the tor DNS port setting
+// to use DNS over tor.
+func WithDNSPort(port int) Configurator {
+	return func(c *confStore.Config) error {
+		portStr := strconv.Itoa(port)
+		c.TorStart.ExtraArgs = []string{"--DNSPort", portStr}
 		return nil
 	}
 }
