@@ -2,7 +2,9 @@ package tor
 
 import (
 	"context"
+	"github.com/go-errors/errors"
 	"github.com/libp2p/go-libp2p/core/network"
+	"io"
 	"net"
 	"strconv"
 	"sync"
@@ -65,6 +67,9 @@ func (l *listener) Close() error {
 		l.lAddrStore.Unlock()
 		l.cancel()
 		err = l.service.Close()
+		if errors.Is(err, io.EOF) {
+			err = nil
+		}
 	})
 	return err
 }
@@ -72,7 +77,7 @@ func (l *listener) Close() error {
 func (l *listener) Accept() (tpt.CapableConn, error) {
 	c, err := l.service.Accept()
 	if err != nil {
-		return nil, errorx.Decorate(err, "Can't accept connection")
+		return nil, tpt.ErrListenerClosed
 	}
 
 	maconn := &listConn{
