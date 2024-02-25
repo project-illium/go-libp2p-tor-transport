@@ -96,7 +96,7 @@ func SetDataDir(path string) Configurator {
 		if err != nil {
 			errorx.Decorate(err, "Can't resolve path")
 		}
-		c.TorStart.DataDir = rpath
+		c.TorStart.TempDataDirBase = rpath
 		c.TorStart.RetainTempDataDir = true
 		return nil
 	}
