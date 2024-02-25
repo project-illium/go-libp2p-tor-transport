@@ -4,18 +4,18 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/libp2p/go-libp2p/core/network"
 	"strconv"
 	"sync"
 	"time"
 
-	"berty.tech/go-libp2p-tor-transport/config"
-	"berty.tech/go-libp2p-tor-transport/internal/confStore"
+	"github.com/project-illium/go-libp2p-tor-transport/config"
+	"github.com/project-illium/go-libp2p-tor-transport/internal/confStore"
 
 	"github.com/cretz/bine/tor"
 
-	"github.com/libp2p/go-libp2p-core/peer"
-	tpt "github.com/libp2p/go-libp2p-core/transport"
-	tptu "github.com/libp2p/go-libp2p-transport-upgrader"
+	"github.com/libp2p/go-libp2p/core/peer"
+	tpt "github.com/libp2p/go-libp2p/core/transport"
 
 	ma "github.com/multiformats/go-multiaddr"
 	mafmt "github.com/multiformats/go-multiaddr-fmt"
@@ -31,12 +31,14 @@ type transport struct {
 
 	// Used to upgrade unsecure TCP connections to secure multiplexed and
 	// authenticate Tor connections.
-	upgrader *tptu.Upgrader
+	upgrader tpt.Upgrader
 
 	// if allowTcpDial is true the transport will accept to dial tcp address.
 	allowTcpDial bool
 	// setupTimeout is the timeout for announcing a tunnel
 	setupTimeout time.Duration
+
+	rcmgr network.ResourceManager
 
 	// the listenStore is used for dialing connection to exchange listen addr.
 	laddrs listenStore
@@ -56,7 +58,7 @@ type listenHolder struct {
 	next *listenHolder
 }
 
-func NewBuilder(cs ...config.Configurator) (func(*tptu.Upgrader) tpt.Transport, error) {
+func NewBuilder(cs ...config.Configurator) (func(tpt.Upgrader) tpt.Transport, error) {
 	var conf confStore.Config
 	{
 		// Applying configuration
@@ -65,6 +67,7 @@ func NewBuilder(cs ...config.Configurator) (func(*tptu.Upgrader) tpt.Transport, 
 			TorStart: &tor.StartConf{
 				EnableNetwork: true, // Do Fast Start
 			},
+			ResourceManager: &network.NullResourceManager{},
 		}
 		if err := config.Merge(cs...)(c); err != nil {
 			return nil, errorx.Decorate(err, "Can't apply configuration to the tor node")
@@ -83,13 +86,14 @@ func NewBuilder(cs ...config.Configurator) (func(*tptu.Upgrader) tpt.Transport, 
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't create a dialer.")
 	}
-	return func(u *tptu.Upgrader) tpt.Transport {
+	return func(u tpt.Upgrader) tpt.Transport {
 		return &transport{
 			allowTcpDial: conf.AllowTcpDial,
 			setupTimeout: conf.SetupTimeout,
 			bridge:       t,
 			dialer:       dialer,
 			upgrader:     u,
+			rcmgr:        conf.ResourceManager,
 		}
 	}, nil
 }
@@ -173,6 +177,7 @@ FinishAddingLAddr:
 		cancel:     cancel,
 		upgrader:   t.upgrader,
 		t:          t,
+		rcmgr:      t.rcmgr,
 		lAddrStore: &t.laddrs,
 		lAddrCur:   newHolder,
 	}, nil
@@ -194,11 +199,17 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 			return nil, errorx.Decorate(err, "Can't dial")
 		}
 		// Upgrading
-		conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConn{
+
+		connScope, err := t.rcmgr.OpenConnection(network.DirOutbound, true, raddr)
+		if err != nil {
+			return nil, errorx.Decorate(err, "Resource manager blocked outgoing tor connection")
+		}
+
+		conn, err := t.upgrader.Upgrade(ctx, t, &dialConn{
 			netConnWithoutAddr: c,
 			raddr:              raddr,
 			laddr:              &t.laddrs,
-		}, p)
+		}, network.DirOutbound, p, connScope)
 		if err != nil {
 			return nil, errorx.Decorate(err, "Can't upgrade laddr exchange connection")
 		}
@@ -265,12 +276,18 @@ func (t *transport) dialTroughProxy(ctx context.Context, raddr ma.Multiaddr, add
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't dial")
 	}
+
+	connScope, err := t.rcmgr.OpenConnection(network.DirOutbound, true, raddr)
+	if err != nil {
+		return nil, errorx.Decorate(err, "Resource manager blocked outgoing tor connection")
+	}
+
 	// Upgrading
-	conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConnTcp{
+	conn, err := t.upgrader.Upgrade(ctx, t, &dialConnTcp{
 		netConnWithoutAddr: c,
 		raddr:              raddr,
 		laddr:              &t.laddrs,
-	}, p)
+	}, network.DirOutbound, p, connScope)
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't upgrade connection")
 	}

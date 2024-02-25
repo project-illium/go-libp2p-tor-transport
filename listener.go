@@ -2,14 +2,14 @@ package tor
 
 import (
 	"context"
+	"github.com/libp2p/go-libp2p/core/network"
 	"net"
 	"strconv"
 	"sync"
 
 	"github.com/cretz/bine/tor"
 
-	tpt "github.com/libp2p/go-libp2p-core/transport"
-	tptu "github.com/libp2p/go-libp2p-transport-upgrader"
+	tpt "github.com/libp2p/go-libp2p/core/transport"
 
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -22,8 +22,9 @@ type listener struct {
 	cancel  func()
 	closer  sync.Once
 
-	upgrader *tptu.Upgrader
+	upgrader tpt.Upgrader
 	t        *transport
+	rcmgr    network.ResourceManager
 
 	lAddrStore *listenStore
 	lAddrCur   *listenHolder
@@ -74,16 +75,24 @@ func (l *listener) Accept() (tpt.CapableConn, error) {
 		return nil, errorx.Decorate(err, "Can't accept connection")
 	}
 
-	maConn := &listConn{
+	maconn := &listConn{
 		netConnWithoutAddr: c,
 		l:                  l,
 		raddr:              NopMaddr2,
 	}
 
-	conn, err := l.upgrader.UpgradeInbound(
+	connScope, err := l.rcmgr.OpenConnection(network.DirInbound, true, maconn.RemoteMultiaddr())
+	if err != nil {
+		return nil, errorx.Decorate(err, "Resource manager blocked incoming tor connection")
+	}
+
+	conn, err := l.upgrader.Upgrade(
 		l.ctx,
 		l.t,
-		maConn,
+		maconn,
+		network.DirInbound,
+		"",
+		connScope,
 	)
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't upgrade raddr exchange connection")
@@ -141,7 +150,7 @@ func (l *listener) Accept() (tpt.CapableConn, error) {
 			// will not use this conn.
 			goto EndLAddrExchange
 		}
-		maConn.raddr = raddr
+		maconn.raddr = raddr
 	}
 EndLAddrExchange:
 	stream.Close()

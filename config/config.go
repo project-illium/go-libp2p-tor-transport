@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/libp2p/go-libp2p/core/network"
 	"io"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 var _ = []Configurator{
 	AllowTcpDial,
 	DoSlowStart,
-	EnableEmbeded,
 }
 
 type Configurator func(*confStore.Config) error
@@ -43,6 +43,15 @@ func AllowTcpDial(c *confStore.Config) error {
 func DoSlowStart(c *confStore.Config) error {
 	c.TorStart.EnableNetwork = false
 	return nil
+}
+
+// WithResourceManager sets a global resource manager for the transport
+// otherwise it will be set to a null manager.
+func WithResourceManager(rcmgr network.ResourceManager) Configurator {
+	return func(c *confStore.Config) error {
+		c.ResourceManager = rcmgr
+		return nil
+	}
 }
 
 // SetSetupTimeout change the timeout for the bootstrap of the node and the publication of the tunnel.
