@@ -9,11 +9,11 @@ import (
 )
 
 // nopMaddr is an empty maddr used as filler when needed.
-const NopMaddr2Str = "/onion/aaaaaaaaaaaaaaaa:1"
+const NopMaddr2Str = "/onion/aaaaaaaaaaaaaaaa:9003"
 
 var NopMaddr2, _ = ma.NewMultiaddr(NopMaddr2Str)
 
-const NopMaddr3Str = "/onion3/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1"
+const NopMaddr3Str = "/onion3/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:9003"
 
 var NopMaddr3, _ = ma.NewMultiaddr(NopMaddr3Str)
 

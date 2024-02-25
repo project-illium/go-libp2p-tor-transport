@@ -214,8 +214,8 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 			return nil, errorx.Decorate(err, "Can't upgrade laddr exchange connection")
 		}
 
-		// Entering the laddr exchange (due to tor limitation, the dialer have to send
-		// his local addr manualy).
+		// Entering the laddr exchange (due to tor limitation, the dialer has to send
+		// his local addr manually).
 		var laddr ma.Multiaddr
 		t.laddrs.RLock()
 		cur := t.laddrs.cur
