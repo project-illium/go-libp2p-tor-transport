@@ -8,7 +8,7 @@ import (
 	"github.com/joomcode/errorx"
 	"github.com/yookoala/realpath"
 
-	"berty.tech/go-libp2p-tor-transport/internal/confStore"
+	"github.com/project-illium/go-libp2p-tor-transport/internal/confStore"
 )
 
 // Check that all configurator are correctly done :
