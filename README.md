@@ -35,8 +35,3 @@ func c(err error) {
   }
 }
 ```
-
-## Tor Provider Compatibility
-You can use 2 different provider :
-- External node, the transport will connect to an already running tor node (usefull for server, can increase annonymity by running a relay at the same time blocking SCA attacks).
-- File Path, you can give a path to a tor node executable, the transport will start the node and setup it.
